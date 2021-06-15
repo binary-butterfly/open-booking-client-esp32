@@ -60,9 +60,8 @@ class WebsocketClient:
 
         while header:
             header = sock.readline()[:-2]
-
-        self.ws = Websocket(sock)
-        self.ws.settimeout(0.1)
+        print('connected!')
+        self.ws = Websocket(sock, 0.1)
 
     def send(self, buf):
         return self.ws.send(buf)

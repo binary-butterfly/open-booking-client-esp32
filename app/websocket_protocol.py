@@ -1,12 +1,33 @@
 """
 Websockets protocol
+
+MIT License
+
+Copyright (c) 2019 Danielle Madeley
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 """
 
-import ure as re
+import uselect
 import ustruct as struct
 import urandom as random
 import usocket as socket
-from ucollections import namedtuple
 
 # Opcodes
 OP_CONT = const(0x0)
@@ -45,9 +66,12 @@ class Websocket:
     """
     is_client = True
 
-    def __init__(self, sock):
+    def __init__(self, sock, timeout):
         self.sock = sock
         self.open = True
+        self.timeout = timeout
+        self.poller = uselect.poll()
+        self.poller.register(sock, uselect.POLLIN)
 
     def __enter__(self):
         return self
@@ -55,23 +79,22 @@ class Websocket:
     def __exit__(self, exc_type, exc, tb):
         self.close()
 
-    def settimeout(self, timeout):
-        self.sock.settimeout(timeout)
-
-    def read_frame(self, max_size=None):
-        """
-        Read a frame from the socket.
-        See https://tools.ietf.org/html/rfc6455#section-5.2 for the details.
-        """
-
+    def read_frame(self):
+        two_bytes = None
         # Frame header
         try:
-            two_bytes = self.sock.read(2)
+            res = self.poller.poll(100)
+            if not res:
+                raise NoDataException
+            for sock, ev in res:
+                print(ev)
+                if ev & (uselect.POLLHUP | uselect.POLLERR):
+                    raise ValueError
+                two_bytes = sock.read(2)
         except OSError:
             raise NoDataException
-
         if not two_bytes:
-            raise NoDataException
+            raise ValueError
 
         byte1, byte2 = struct.unpack('!BB', two_bytes)
 
@@ -89,10 +112,9 @@ class Websocket:
             length, = struct.unpack('!Q', self.sock.read(8))
 
         if mask:  # Mask is 4 bytes
-            mask_bits = self.sock.read(4)
-
+            mask_bits = sock.read(4)
         try:
-            data = self.sock.read(length)
+            data = sock.read(length)
         except MemoryError:
             # We can't receive this many bytes, close the socket
             self.close(code=CLOSE_TOO_BIG)
@@ -215,5 +237,7 @@ class Websocket:
         self._close()
 
     def _close(self):
+        print('closed!')
         self.open = False
+        self.poller.unregister(self.sock)
         self.sock.close()
