@@ -27,7 +27,7 @@ SOFTWARE.
 import uselect
 import ustruct as struct
 import urandom as random
-import usocket as socket
+from ubinascii import hexlify
 
 # Opcodes
 OP_CONT = const(0x0)
@@ -68,16 +68,105 @@ class Websocket:
 
     def __init__(self, sock, timeout):
         self.sock = sock
+        self.sock.setblocking(False)
         self.open = True
         self.timeout = timeout
         self.poller = uselect.poll()
         self.poller.register(sock, uselect.POLLIN)
+        self.input = b''
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc, tb):
         self.close()
+
+    def poll(self):
+        res = self.poller.poll(1)
+        if not res:
+            return
+        fragment = None
+        for sock, ev in res:
+            if ev & (uselect.POLLHUP | uselect.POLLERR):
+                self._close()
+                raise ConnectionClosed()
+            fragment = sock.read()
+        if not fragment:
+            self._close()
+            raise ConnectionClosed()
+        self.input += fragment
+        return self.handle_input()
+
+    def handle_input(self):
+        """
+        parses message and looks if message is complete
+        """
+        position = 2
+        if len(self.input) < position:  # 2 start
+            return
+        two_bytes = self.input[0:2]
+        byte1, byte2 = struct.unpack('!BB', two_bytes)
+
+        # Byte 1: FIN(1) _(1) _(1) _(1) OPCODE(4)
+        fin = bool(byte1 & 0x80)
+        opcode = byte1 & 0x0f
+
+        # Byte 2: MASK(1) LENGTH(7)
+        mask = bool(byte2 & (1 << 7))
+        length = byte2 & 0x7f
+
+        if length == 126:  # Magic number, length header is 2 bytes
+            position += 2
+            if len(self.input) < position: # 2 start bytes + 2 header bytes
+                return
+            length, = struct.unpack('!H', self.input[2:4])
+        elif length == 127:  # Magic number, length header is 8 bytes
+            position += 8
+            if len(self.input) < position: # 2 start bytes + 8 header bytes
+                return
+            length, = struct.unpack('!Q', self.input[2:10])
+
+        if mask:  # Mask is 4 bytes
+            position += 4
+            if len(self.input) < position:
+                return
+            mask_bits = self.input[position - 4:position]
+        if len(self.input) < position + length:
+            return
+        try:
+            data = self.input[position:position + length]
+            self.input = self.input[position + length:]
+        except MemoryError:
+            # We can't receive this many bytes, close the socket
+            self.close(code=CLOSE_TOO_BIG)
+            return
+
+        if mask:
+            data = bytes(b ^ mask_bits[i % 4] for i, b in enumerate(data))
+
+        if not fin:
+            raise NotImplementedError()
+
+        if opcode == OP_TEXT:
+            return data.decode('utf-8')
+        if opcode == OP_BYTES:
+            return data
+        if opcode == OP_CLOSE:
+            self._close()
+            return
+        if opcode == OP_PONG:
+            # Ignore this frame, keep waiting for a data frame
+            return
+        if opcode == OP_PING:
+            # We need to send a pong frame
+            self.write_frame(OP_PONG, data)
+            # And then wait to receive
+            return
+        if opcode == OP_CONT:
+            # This is a continuation of a previous frame
+            raise NotImplementedError(opcode)
+        raise ValueError(opcode)
+
 
     def read_frame(self):
         two_bytes = None

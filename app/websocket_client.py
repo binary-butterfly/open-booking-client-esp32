@@ -64,10 +64,11 @@ class WebsocketClient:
         self.ws = Websocket(sock, 0.1)
 
     def send(self, buf):
+        print(buf)
         return self.ws.send(buf)
 
-    def recv(self):
-        return self.ws.recv()
+    def poll(self):
+        return self.ws.poll()
 
     @property
     def open(self):

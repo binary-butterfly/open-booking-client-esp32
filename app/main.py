@@ -13,8 +13,9 @@ def main_loop():
         try:
             if len(websocket_send_queue):
                 websocket.send(websocket_send_queue.pop() + "\r\n")
-            reply = websocket.recv()
+            reply = websocket.poll()
             if reply is not None:
+                print(reply)
                 HandleWebsocketMessage(reply)
         except (NoDataException, ConnectionClosed):
             continue
