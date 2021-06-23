@@ -62,7 +62,7 @@ class Device:
         self.lock_status = 'closing'
         self.lock_close_pin.value(1)
         self.door_lock_timer.init(mode=Timer.ONE_SHOT, period=250, callback=self.finalize_lock)
-        websocket_send('ResourceStatusChange', 'request', {'status': 'closed', 'resource_uid': config.RESOURCE_UID})
+        websocket_send('ResourceStatusChange', 'request', {'status': 'closing', 'resource_uid': config.RESOURCE_UID})
 
     def finalize_lock(self):
         self.lock_open_pin.value(0)
