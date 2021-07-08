@@ -1,10 +1,13 @@
 import ujson as json
+from app import config
 from app.extensions import device
 from app.websocket import websocket_send
 
 
 class HandleWebsocketMessage:
     def __init__(self, message_raw):
+        if config.DEBUG:
+            print('<< %s' % message_raw)
         message = json.loads(message_raw)
         self.state = message['state']
         self.uid = message['uid']

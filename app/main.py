@@ -2,9 +2,12 @@ from app.extensions import websocket, websocket_send_queue, device
 from app.websocket_handler import HandleWebsocketMessage
 from app.websocket_protocol import NoDataException, ConnectionClosed
 from app.websocket import websocket_send
+from app import config
 
 
 def main_loop():
+    if config.DEBUG:
+        print('loading application ...')
     device.boot()
 
     while True:
@@ -15,7 +18,6 @@ def main_loop():
                 websocket.send(websocket_send_queue.pop() + "\r\n")
             reply = websocket.poll()
             if reply is not None:
-                print(reply)
                 HandleWebsocketMessage(reply)
         except (NoDataException, ConnectionClosed):
             continue
