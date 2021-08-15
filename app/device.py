@@ -1,7 +1,6 @@
 import uos
 from machine import Pin, Timer
-from app import config
-from app.extensions import wifi
+from app.extensions import config, wifi
 from app.websocket import websocket_send
 
 
@@ -64,7 +63,7 @@ class Device:
         self.door_lock_timer.init(mode=Timer.ONE_SHOT, period=250, callback=self.finalize_lock)
         websocket_send('ResourceStatusChange', 'request', {'status': 'closing', 'resource_uid': config.RESOURCE_UID})
 
-    def finalize_lock(self):
+    def finalize_lock(self, pin):
         self.lock_open_pin.value(0)
         self.lock_close_pin.value(0)
         if self.lock_status == 'opening':

@@ -1,5 +1,5 @@
 import network
-from app import config
+from app.extensions import config
 
 
 def wifi_connect():

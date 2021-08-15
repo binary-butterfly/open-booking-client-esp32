@@ -1,8 +1,7 @@
-from app.extensions import websocket, websocket_send_queue, device
+from app.extensions import config, websocket, websocket_send_queue, device
 from app.websocket_handler import HandleWebsocketMessage
 from app.websocket_protocol import NoDataException, ConnectionClosed
 from app.websocket import websocket_send
-from app import config
 
 
 def main_loop():

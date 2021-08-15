@@ -4,6 +4,7 @@ app/device.py
 app/extensions.py
 app/main.py
 app/networking.py
+app/update.py
 app/websocket.py
 app/websocket_client.py
 app/websocket_handler.py

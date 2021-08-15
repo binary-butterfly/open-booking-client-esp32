@@ -1,7 +1,9 @@
+import machine
+from time import sleep
 import ujson as json
-from app import config
-from app.extensions import device
+from app.extensions import config, device
 from app.websocket import websocket_send
+from app.update import update
 
 
 class HandleWebsocketMessage:
@@ -22,3 +24,11 @@ class HandleWebsocketMessage:
         else:
             device.close_lock()
         websocket_send(self.type, 'reply', {}, self.uid)
+
+    def handleReboot(self):
+        websocket_send(self.type, 'reply', {}, self.uid)
+        sleep(1)
+        machine.reset()
+
+    def handleFirmwareUpdate(self):
+        update(self.data['version'])

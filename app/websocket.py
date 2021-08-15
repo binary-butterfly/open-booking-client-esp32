@@ -1,8 +1,7 @@
 import uos
 import ujson as json
 from ubinascii import hexlify
-from app.extensions import websocket_send_queue
-from app import config
+from app.extensions import config, websocket_send_queue
 
 
 def websocket_send(message_type, state, data, uid=None):

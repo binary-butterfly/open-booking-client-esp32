@@ -4,7 +4,7 @@ import urandom as random
 from ubinascii import hexlify, b2a_base64
 
 
-from app import config
+from app.extensions import config
 from app.websocket_protocol import Websocket
 from app.websocket import websocket_send
 
@@ -15,6 +15,7 @@ class WebsocketClient:
     def __init__(self):
         while True:
             try:
+                print('connect')
                 self.connect()
                 break
             except OSError:

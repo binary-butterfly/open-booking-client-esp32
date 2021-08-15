@@ -1,3 +1,6 @@
+from .config import Config
+config = Config()
+
 websocket_send_queue = []
 websocket_receive_queue = []
 
